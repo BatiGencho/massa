@@ -1,0 +1,13 @@
+{
+  "name": "wasm_tests",
+  "version": "0.1.0",
+  "scripts": {
+    "build": "asc src/event_test.ts --target release --exportRuntime --binaryFile build/event_test.wasm"
+  },
+  "dependencies": {
+    "assemblyscript": "^0.19.20",
+    "json-as": "^0.2.6",
+    "massa-sc-std": "2.0.0",
+    "visitor-as": "^0.6.0"
+  }
+}

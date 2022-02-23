@@ -133,7 +133,7 @@ impl VM {
         });
         self.step_history
             .iter()
-            .filter(|item| item.slot >= start && item.slot < end)
+            .filter(|item| item.slot >= start && item.slot <= end)
             .flat_map(|item| {
                 item.events.get_filtered_sc_output_event(
                     start,
@@ -184,12 +184,17 @@ impl VM {
     /// runs an SCE-final execution step
     /// See https://github.com/massalabs/massa/wiki/vm_ledger_interaction
     ///
+    /// If the node has already compute the bytecodes and found corresponding
+    /// `ledger_changes`, use it, clear step history and run the `step` again
+    /// otherwise.
+    ///
+    /// Prune old `final_events` if `max_final_events` overflow
     /// # Parameters
     ///   * step: execution step to run
     ///   * max_final_events: max number of events kept in cache (todo should be removed when config become static)
     pub(crate) fn run_final_step(&mut self, step: ExecutionStep, max_final_events: usize) {
         // check if that step was already executed as the earliest active step
-        let history_item = if let Some(cached) = self.pop_cached_step(&step) {
+        let mut history_item = if let Some(cached) = self.pop_cached_step(&step) {
             // if so, pop it
             cached
         } else {
@@ -207,7 +212,10 @@ impl VM {
             .apply_changes(&history_item.ledger_changes);
         ledger_step.final_ledger_slot.slot = step.slot;
 
-        self.final_events.extend(mem::take(&mut context.events));
+        // store the events and clear definitively from the item because the
+        // events should be weaks in memory
+        self.final_events
+            .extend(mem::take(&mut history_item.events));
         self.final_events.prune(max_final_events)
     }
 
@@ -316,6 +324,12 @@ impl VM {
     }
 
     /// Run code in read-only mode
+    /// Same as `run_step_internal()` but don't save ledger_changes.
+    /// Execute a `bytecode` with an `address` as sender context and a
+    /// `simulated_gas_price` with some input parameters as context.
+    ///
+    /// As resulted and send a `ExecuteReadOnlyResponse` through the result
+    /// sender.
     pub(crate) fn run_read_only(
         &self,
         slot: Slot,
@@ -486,6 +500,30 @@ impl VM {
 
     /// runs an SCE-active execution step
     /// See https://github.com/massalabs/massa/wiki/vm_ledger_interaction
+    ///
+    /// Truncate the history by the number of slots between last added step in
+    /// `step_history` and the `step` in parameter. (See Optimization)
+    ///
+    /// Call the internal `run_step_internal()` and push the `StepHistoryItem`
+    /// into `self.step_history`.
+    ///
+    /// # Optimization
+    /// `step_history` contains the execution results of CONSECUTIVE active
+    /// slots that have been executed (front = oldest, back = most recent).
+    /// Therefore, if the VM gets a new active step (slot) to execute, and that
+    /// slot number breaks the slot-sorting of step_history when pushed back,
+    /// it means that there was a history rewrite (eg. clique change) and the
+    /// step_history needs to be truncated just before the incoming slot before
+    /// executing it and appending its result to step_history.
+    ///
+    /// ```ascii
+    /// s1     s4
+    ///  \      \
+    ///   s2     s5
+    ///    \      \ <--- input `step` to run is s6 so we can truncate 's7'
+    ///     \      \
+    ///      s3     s7
+    /// ```
     ///
     /// # Parameters
     ///   * step: execution step to run

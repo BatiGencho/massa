@@ -128,11 +128,13 @@ impl ExecutionCommandSender {
     }
 
     /// Get events optionnally filtered by:
-    /// * start slot
-    /// * end slot
+    /// * start slot (default Slot(0,0))
+    /// * end slot   (default Slot(0,0))
     /// * emitter address
     /// * original caller address
     /// * operation id
+    ///
+    /// If None, take all
     pub async fn get_filtered_sc_output_event(
         &self,
         start: Option<Slot>,

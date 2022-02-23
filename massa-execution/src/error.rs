@@ -19,6 +19,10 @@ pub enum ExecutionError {
 
     /// File error
     FileError(String),
+
+    #[cfg(test)]
+    /// MassaHashError (used in test only): {0}
+    MassaHashError(#[from] massa_hash::MassaHashError),
 }
 
 macro_rules! bootstrap_file_error {

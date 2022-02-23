@@ -208,7 +208,7 @@ impl EventStore {
             .iter()
             // filter on slots
             .filter_map(|(slot, ids)| {
-                if slot >= &start && slot < &end {
+                if slot >= &start && slot <= &end {
                     Some(ids)
                 } else {
                     None
