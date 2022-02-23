@@ -1,0 +1,14 @@
+# Run node
+RUST_BACKTRACE=full cargo run --release |& tee logs.txt
+
+# Run client
+cargo run -- --release --wallet wallet.dat
+
+# set log level to 3 in the node logs (e.g. to be able to see smart contracts output)
+/massa/massa-node/base_config/config.toml
+
+# build docker image in root
+DOCKER_BUILDKIT=1 docker build --file Dockerfile --target release --tag massa-node .
+
+# run docker image
+docker run massa-node:latest

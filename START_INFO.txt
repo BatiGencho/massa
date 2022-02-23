@@ -1,5 +1,0 @@
-RUST_BACKTRACE=full cargo run --release |& tee logs.txt
-cargo run -- --release --wallet wallet.dat
-
-also to see smart contracts output put hte log level to 3 in the node log
-/massa/massa-node/base_config/config.toml
